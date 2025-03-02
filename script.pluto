@@ -23,7 +23,7 @@ end
 
 local high_hash = false
 local function is_good_hash(hash)
-	return high_hash ? hash >= 0xffff0000 : hash < 0x10000
+	return high_hash ? hash >= 0xffff0000 : hash < 0xf0000
 end
 
 local function results_add(results, suffix, hash)
@@ -33,19 +33,27 @@ end
 local function try_suffix(results, hash_prefix, depth, ...)
 	depth -= 1
 	if depth == 0 then
-		for b = 0x61, 0x7A do
-			local partial = joaat_add(hash_prefix, b)
-			local hash = joaat_finalise(partial)
-			if is_good_hash(hash) then
-				local t = { ... }
-				t:insert(1, b)
-				t:reverse()
-				local suffix = t:map(string.char):concat()
-				results_add(results, suffix, hash)
+		for b = 0x2E, 0x7A do
+			if b == 0x2E then
+				for b2 = 0x2E, 0x7A do
+					if b2 == 0x2E then
+						local partial = joaat_add(hash_prefix, b)
+						partial = joaat_add(partial, b2)
+						local hash = joaat_finalise(partial)
+						if is_good_hash(hash) then
+							local t = { ... }
+							t:insert(1, b2)
+							t:insert(1, b)
+							t:reverse()
+							local suffix = t:map(string.char):concat()
+							results_add(results, suffix, hash)
+						end
+					end
+				end
 			end
 		end
 	end
-	if depth > 0 and #results < 10 then
+	if depth > 0 and #results < 50 then
 		for b = 0x61, 0x7A do
 			local partial = joaat_add(hash_prefix, b)
 			try_suffix(results, partial, depth, b, ...)
@@ -55,8 +63,8 @@ end
 
 local function calc()
 	local prefix = (document.getElementById("name-prefix").value or ""):lower()
-	local min_chars_to_add = math.max(1, 6 - #prefix)
-	local max_chars_to_add = 16 - #prefix
+	local min_chars_to_add = math.max(1, 5 - #prefix)
+	local max_chars_to_add = 5 - #prefix
 	if min_chars_to_add > max_chars_to_add then
 		document.getElementById("output").textContent = "Impossible"
 		return
@@ -74,7 +82,7 @@ local function calc()
 	end
 	for chars_to_add = min_chars_to_add, max_chars_to_add do
 		try_suffix(results, partial, chars_to_add)
-		if #results >= 10 then
+		if #results >= 50 then
 			break
 		end
 	end
